@@ -79,7 +79,7 @@
                 </div>
             </div>
             <div class="action-buttons">
-                <button class="btn-action btn-update" onclick="updateData()">
+                <button class="btn-action btn-update" onclick="updateData( )">
                     <i class="fas fa-sync-alt"></i> Atualizar Painel
                 </button>
                 <button class="btn-action btn-clear" onclick="clearFilters()">
@@ -128,6 +128,12 @@
                     <canvas id="unidadeChart"></canvas>
                 </div>
             </div>
+            <div class="chart-container">
+                <div class="chart-title">Total de profissionais por vinculo</div>
+                <div class="chart-wrapper">
+                    <canvas id="vinculoChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <div class="charts-grid">
@@ -159,8 +165,6 @@
                 </div>
             </div>
         </div>
-
-        
 
         <!-- Tabela de Dados -->
         <div class="data-table">
@@ -196,4 +200,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
