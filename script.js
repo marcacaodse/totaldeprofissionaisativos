@@ -7,9 +7,25 @@ const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RGc_C7ABlb5hsGrVLgpZW
 let profissionaisData = [];
 let filteredData = [];
 let charts = {};
+let choicesInstances = {}; // Armazena as instâncias dos filtros Choices.js
+
+// Função para inicializar os filtros de múltipla seleção
+function initializeChoices( ) {
+    const filterElements = document.querySelectorAll('.filter-select');
+    filterElements.forEach(selectElement => {
+        choicesInstances[selectElement.id] = new Choices(selectElement, {
+            removeItemButton: true,
+            placeholder: true,
+            placeholderValue: 'Selecione uma ou mais opções',
+            allowHTML: true,
+        });
+        // Adiciona o evento de mudança para aplicar os filtros
+        selectElement.addEventListener('change', applyFilters);
+    });
+}
 
 // Função para carregar dados do Google Sheets
-async function loadGoogleSheetsData( ) {
+async function loadGoogleSheetsData() {
     try {
         const response = await fetch(SHEET_URL);
         const text = await response.text();
@@ -30,7 +46,7 @@ async function loadGoogleSheetsData( ) {
                 unidade: row['Unidades de Saúde'] || '',
                 equipe: row['Equipes'] || '',
                 funcao: row['Função'] || '',
-                cargaHoraria: row['Carga Horária'] || '',
+                cargaHoraria: String(row['Carga Horária']) || '', // Garante que seja string
                 turno: row['Turno'] || '',
                 situacaoFuncional: row['Situação Funcional'] || '',
                 situacaoAtual: row['Situação atual'] || '',
@@ -53,263 +69,95 @@ function updateDashboard() {
     applyFilters();
 }
 
-// Função para atualizar filtros
+// Função para atualizar as opções dos filtros
 function updateFilters() {
-    const unidades = [...new Set(profissionaisData.map(p => p.unidade))].filter(u => u).sort();
-    const equipes = [...new Set(profissionaisData.map(p => p.equipe))].filter(e => e).sort();
-    const funcoes = [...new Set(profissionaisData.map(p => p.funcao))].filter(f => f).sort();
-    const cargasHorarias = [...new Set(profissionaisData.map(p => p.cargaHoraria))].filter(c => c).sort();
-    const turnos = [...new Set(profissionaisData.map(p => p.turno))].filter(t => t).sort();
-    const situacoesFuncionais = [...new Set(profissionaisData.map(p => p.situacaoFuncional))].filter(s => s).sort();
-    const situacoesAtuais = [...new Set(profissionaisData.map(p => p.situacaoAtual))].filter(s => s).sort();
-    const vinculos = [...new Set(profissionaisData.map(p => p.vinculo))].filter(v => v).sort();
-
-    updateSelectOptions('unidadeFilter', unidades);
-    updateSelectOptions('equipeFilter', equipes);
-    updateSelectOptions('funcaoFilter', funcoes);
-    updateSelectOptions('cargaHorariaFilter', cargasHorarias);
-    updateSelectOptions('turnoFilter', turnos);
-    updateSelectOptions('situacaoFuncionalFilter', situacoesFuncionais);
-    updateSelectOptions('situacaoAtualFilter', situacoesAtuais);
-    updateSelectOptions('vinculoFilter', vinculos);
-}
-
-function updateSelectOptions(selectId, options) {
-    const select = document.getElementById(selectId);
-    const currentValue = select.value;
+    const filterKeys = ['unidade', 'equipe', 'funcao', 'cargaHoraria', 'turno', 'situacaoFuncional', 'situacaoAtual', 'vinculo'];
     
-    select.innerHTML = '<option value="">Todas</option>';
-    
-    options.forEach(option => {
-        if (option) {
-            const optionElement = document.createElement('option');
-            optionElement.value = option;
-            optionElement.textContent = option;
-            select.appendChild(optionElement);
+    filterKeys.forEach(key => {
+        const selectId = `${key}Filter`;
+        const options = [...new Set(profissionaisData.map(p => p[key]))].filter(Boolean).sort();
+        const choicesInstance = choicesInstances[selectId];
+        
+        if (choicesInstance) {
+            choicesInstance.clearStore(); // Limpa opções antigas
+            const choicesOptions = options.map(option => ({ value: option, label: option }));
+            choicesInstance.setChoices(choicesOptions, 'value', 'label', false);
         }
     });
-    
-    if (options.includes(currentValue)) {
-        select.value = currentValue;
-    }
 }
 
-// Função para aplicar filtros
+// Função para aplicar filtros (MODIFICADA PARA MÚLTIPLA SELEÇÃO)
 function applyFilters() {
-    const filters = {
-        unidade: document.getElementById('unidadeFilter').value,
-        equipe: document.getElementById('equipeFilter').value,
-        funcao: document.getElementById('funcaoFilter').value,
-        cargaHoraria: document.getElementById('cargaHorariaFilter').value,
-        turno: document.getElementById('turnoFilter').value,
-        situacaoFuncional: document.getElementById('situacaoFuncionalFilter').value,
-        situacaoAtual: document.getElementById('situacaoAtualFilter').value,
-        vinculo: document.getElementById('vinculoFilter').value
-    };
+    const filters = {};
+    Object.keys(choicesInstances).forEach(id => {
+        const key = id.replace('Filter', '');
+        // Pega os valores selecionados do Choices.js
+        filters[key] = choicesInstances[id].getValue(true);
+    });
 
     filteredData = profissionaisData.filter(prof => {
         return Object.keys(filters).every(key => {
-            return !filters[key] || prof[key] === filters[key];
+            const selectedValues = filters[key];
+            // Se não há seleção, não filtra por essa chave
+            if (selectedValues.length === 0) {
+                return true;
+            }
+            // Verifica se o valor do profissional está incluído nos valores selecionados
+            return selectedValues.includes(prof[key]);
         });
     });
 
     updateStats();
     renderCharts();
     renderTable();
-    document.getElementById('tableSearch').value = ''; // Limpa a pesquisa da tabela
+    document.getElementById('tableSearch').value = '';
+}
+
+// Função para limpar filtros (MODIFICADA)
+function clearFilters() {
+    Object.values(choicesInstances).forEach(instance => {
+        instance.clearInput();
+        instance.removeActiveItems();
+    });
+    // A função applyFilters() já será chamada pelo evento 'change'
 }
 
 // Função para atualizar estatísticas
 function updateStats() {
     document.getElementById('totalProfissionais').textContent = filteredData.length;
-    document.getElementById('totalUnidades').textContent = [...new Set(filteredData.map(p => p.unidade))].filter(u => u).length;
-    document.getElementById('totalEquipes').textContent = [...new Set(filteredData.map(p => p.equipe))].filter(e => e).length;
-    document.getElementById('totalFuncoes').textContent = [...new Set(filteredData.map(p => p.funcao))].filter(f => f).length;
+    document.getElementById('totalUnidades').textContent = [...new Set(filteredData.map(p => p.unidade))].filter(Boolean).length;
+    document.getElementById('totalEquipes').textContent = [...new Set(filteredData.map(p => p.equipe))].filter(Boolean).length;
+    document.getElementById('totalFuncoes').textContent = [...new Set(filteredData.map(p => p.funcao))].filter(Boolean).length;
 }
 
-// Função para renderizar gráficos
+// Função para renderizar gráficos (sem alterações na lógica interna)
 function renderCharts() {
-    Object.values(charts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
-
+    Object.values(charts).forEach(chart => { if (chart) chart.destroy(); });
     const chartColors = ['#1e3a8a', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0891b2'];
-
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: { enabled: true },
-            datalabels: {
-                anchor: 'center',
-                align: 'center',
-                color: '#fff',
-                font: { weight: 'bold', size: 15 },
-                formatter: (value) => value > 0 ? value : ''
-            }
-        },
-        scales: {
-            y: { beginAtZero: true }
-        }
-    };
-
-    // Gráfico por Unidade
+    const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true }, datalabels: { anchor: 'center', align: 'center', color: '#fff', font: { weight: 'bold', size: 15 }, formatter: (value) => value > 0 ? value : '' } }, scales: { y: { beginAtZero: true } } };
     const unidadeData = countBy(filteredData, 'unidade');
-    charts.unidade = new Chart(document.getElementById('unidadeChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(unidadeData),
-            datasets: [{
-                data: Object.values(unidadeData),
-                backgroundColor: chartColors[0]
-            }]
-        },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
-
-    // Gráfico por Vínculo
+    charts.unidade = new Chart(document.getElementById('unidadeChart'), { type: 'bar', data: { labels: Object.keys(unidadeData), datasets: [{ data: Object.values(unidadeData), backgroundColor: chartColors[0] }] }, options: { ...commonOptions, indexAxis: 'y' } });
     const vinculoData = countBy(filteredData, 'vinculo');
-    charts.vinculo = new Chart(document.getElementById('vinculoChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(vinculoData),
-            datasets: [{
-                label: 'Total por Vínculo',
-                data: Object.values(vinculoData),
-                backgroundColor: '#059669'
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                },
-                y: { beginAtZero: true }
-            }
-        }
-    });
-
-    // Gráfico por Função
+    charts.vinculo = new Chart(document.getElementById('vinculoChart'), { type: 'bar', data: { labels: Object.keys(vinculoData), datasets: [{ label: 'Total por Vínculo', data: Object.values(vinculoData), backgroundColor: '#059669' }] }, options: { ...commonOptions, scales: { x: { beginAtZero: true, ticks: { maxRotation: 45, minRotation: 45 } }, y: { beginAtZero: true } } } });
     const funcaoData = countBy(filteredData, 'funcao');
-    charts.funcao = new Chart(document.getElementById('funcaoChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(funcaoData),
-            datasets: [{
-                data: Object.values(funcaoData),
-                backgroundColor: chartColors[1]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: true },
-                datalabels: {
-                    anchor: 'center',
-                    align: 'center',
-                    rotation: 0,
-                    color: '#fff',
-                    font: { weight: 'bold', size: 16 },
-                    formatter: (value) => value > 0 ? value : ''
-                }
-            },
-            scales: {
-                x: { 
-                    beginAtZero: true,
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                },
-                y: { beginAtZero: true }
-            }
-        }
-    });
-
-    // Gráfico por Carga Horária
+    charts.funcao = new Chart(document.getElementById('funcaoChart'), { type: 'bar', data: { labels: Object.keys(funcaoData), datasets: [{ data: Object.values(funcaoData), backgroundColor: chartColors[1] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true }, datalabels: { anchor: 'center', align: 'center', rotation: 0, color: '#fff', font: { weight: 'bold', size: 16 }, formatter: (value) => value > 0 ? value : '' } }, scales: { x: { beginAtZero: true, ticks: { maxRotation: 45, minRotation: 45 } }, y: { beginAtZero: true } } } });
     const cargaHorariaData = countBy(filteredData, 'cargaHoraria');
-    charts.cargaHoraria = new Chart(document.getElementById('cargaHorariaChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(cargaHorariaData),
-            datasets: [{
-                data: Object.values(cargaHorariaData),
-                backgroundColor: chartColors
-            }]
-        },
-        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } }
-    });
-
-    // Gráfico por Turno
+    charts.cargaHoraria = new Chart(document.getElementById('cargaHorariaChart'), { type: 'bar', data: { labels: Object.keys(cargaHorariaData), datasets: [{ data: Object.values(cargaHorariaData), backgroundColor: chartColors }] }, options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } } });
     const turnoData = countBy(filteredData, 'turno');
-    charts.turno = new Chart(document.getElementById('turnoChart'), {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(turnoData),
-            datasets: [{
-                data: Object.values(turnoData),
-                backgroundColor: chartColors
-            }]
-        },
-        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } }
-    });
-
-    // Gráfico por Situação Funcional
+    charts.turno = new Chart(document.getElementById('turnoChart'), { type: 'doughnut', data: { labels: Object.keys(turnoData), datasets: [{ data: Object.values(turnoData), backgroundColor: chartColors }] }, options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } } });
     const situacaoFuncionalData = countBy(filteredData, 'situacaoFuncional');
-    charts.situacaoFuncional = new Chart(document.getElementById('situacaoFuncionalChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(situacaoFuncionalData),
-            datasets: [{
-                data: Object.values(situacaoFuncionalData),
-                backgroundColor: chartColors[4]
-            }]
-        },
-        options: commonOptions
-    });
-
-    // Gráfico por Situação Atual
+    charts.situacaoFuncional = new Chart(document.getElementById('situacaoFuncionalChart'), { type: 'bar', data: { labels: Object.keys(situacaoFuncionalData), datasets: [{ data: Object.values(situacaoFuncionalData), backgroundColor: chartColors[4] }] }, options: commonOptions });
     const situacaoAtualData = countBy(filteredData, 'situacaoAtual');
-    charts.situacaoAtual = new Chart(document.getElementById('situacaoAtualChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(situacaoAtualData),
-            datasets: [{
-                data: Object.values(situacaoAtualData),
-                backgroundColor: chartColors[5]
-            }]
-        },
-        options: commonOptions
-    });
+    charts.situacaoAtual = new Chart(document.getElementById('situacaoAtualChart'), { type: 'bar', data: { labels: Object.keys(situacaoAtualData), datasets: [{ data: Object.values(situacaoAtualData), backgroundColor: chartColors[5] }] }, options: commonOptions });
 }
 
 // Função para renderizar a tabela
 function renderTable() {
     const tableBody = document.getElementById('profissionaisTable').querySelector('tbody');
     tableBody.innerHTML = '';
-
     filteredData.forEach(prof => {
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${prof.nome}</td>
-            <td>${prof.unidade}</td>
-            <td>${prof.equipe}</td>
-            <td>${prof.funcao}</td>
-            <td>${prof.cargaHoraria}</td>
-            <td>${prof.turno}</td>
-            <td>${prof.situacaoFuncional}</td>
-            <td>${prof.situacaoAtual}</td>
-            <td>${prof.vinculo}</td>
-            <td><span class="badge badge-success">${prof.status}</span></td>
-        `;
+        row.innerHTML = `<td>${prof.nome}</td><td>${prof.unidade}</td><td>${prof.equipe}</td><td>${prof.funcao}</td><td>${prof.cargaHoraria}</td><td>${prof.turno}</td><td>${prof.situacaoFuncional}</td><td>${prof.situacaoAtual}</td><td>${prof.vinculo}</td><td><span class="badge badge-success">${prof.status}</span></td>`;
         tableBody.appendChild(row);
     });
 }
@@ -318,14 +166,9 @@ function renderTable() {
 function filterTable() {
     const searchTerm = document.getElementById('tableSearch').value.toLowerCase();
     const tableRows = document.getElementById('profissionaisTable').querySelector('tbody').querySelectorAll('tr');
-
     tableRows.forEach(row => {
         const rowText = row.textContent.toLowerCase();
-        if (rowText.includes(searchTerm)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = rowText.includes(searchTerm) ? '' : 'none';
     });
 }
 
@@ -336,14 +179,6 @@ function countBy(data, key) {
         acc[group] = (acc[group] || 0) + 1;
         return acc;
     }, {});
-}
-
-// Função para limpar filtros
-function clearFilters() {
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.value = '';
-    });
-    applyFilters();
 }
 
 // Função para baixar como Excel
@@ -361,11 +196,7 @@ function updateData() {
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.addEventListener('change', applyFilters);
-    });
-
+    initializeChoices(); // Inicia os filtros de múltipla seleção
     document.getElementById('tableSearch').addEventListener('keyup', filterTable);
-
     loadGoogleSheetsData();
 });
