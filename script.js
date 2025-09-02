@@ -116,6 +116,7 @@ function applyFilters() {
     updateStats();
     renderCharts();
     renderTable();
+    document.getElementById('tableSearch').value = ''; // Limpa a pesquisa da tabela
 }
 
 // Função para atualizar estatísticas
@@ -167,7 +168,7 @@ function renderCharts() {
         options: { ...commonOptions, indexAxis: 'y' }
     });
 
-    // NOVO: Gráfico por Vínculo
+    // Gráfico por Vínculo
     const vinculoData = countBy(filteredData, 'vinculo');
     charts.vinculo = new Chart(document.getElementById('vinculoChart'), {
         type: 'bar',
@@ -176,7 +177,7 @@ function renderCharts() {
             datasets: [{
                 label: 'Total por Vínculo',
                 data: Object.values(vinculoData),
-                backgroundColor: '#059669' // Cor verde escuro
+                backgroundColor: '#059669'
             }]
         },
         options: {
@@ -194,7 +195,7 @@ function renderCharts() {
         }
     });
 
-    // Gráfico por Função (COM LEGENDA HORIZONTAL)
+    // Gráfico por Função
     const funcaoData = countBy(filteredData, 'funcao');
     charts.funcao = new Chart(document.getElementById('funcaoChart'), {
         type: 'bar',
@@ -214,7 +215,7 @@ function renderCharts() {
                 datalabels: {
                     anchor: 'center',
                     align: 'center',
-                    rotation: 0, // Legenda na horizontal
+                    rotation: 0,
                     color: '#fff',
                     font: { weight: 'bold', size: 16 },
                     formatter: (value) => value > 0 ? value : ''
@@ -313,6 +314,21 @@ function renderTable() {
     });
 }
 
+// Função para filtrar a tabela com base na pesquisa
+function filterTable() {
+    const searchTerm = document.getElementById('tableSearch').value.toLowerCase();
+    const tableRows = document.getElementById('profissionaisTable').querySelector('tbody').querySelectorAll('tr');
+
+    tableRows.forEach(row => {
+        const rowText = row.textContent.toLowerCase();
+        if (rowText.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
 // Função auxiliar para contagem
 function countBy(data, key) {
     return data.reduce((acc, item) => {
@@ -348,5 +364,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.filter-select').forEach(select => {
         select.addEventListener('change', applyFilters);
     });
+
+    document.getElementById('tableSearch').addEventListener('keyup', filterTable);
+
     loadGoogleSheetsData();
 });
