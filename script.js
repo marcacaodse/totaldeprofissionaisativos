@@ -179,7 +179,32 @@ function renderCharts() {
                 backgroundColor: chartColors[1]
             }]
         },
-        options: { ...commonOptions, indexAxis: 'y' }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true },
+                datalabels: {
+                    anchor: 'center',
+                    align: 'center',
+                    rotation: 90,
+                    color: '#fff',
+                    font: { weight: 'bold', size: 16 },
+                    formatter: (value) => value > 0 ? value : ''
+                }
+            },
+            scales: {
+                x: { 
+                    beginAtZero: true,
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: { beginAtZero: true }
+            }
+        }
     });
 
     // Gráfico por Carga Horária
@@ -238,19 +263,7 @@ function renderCharts() {
         options: commonOptions
     });
 
-    // Gráfico por Vinculo
-    const vinculoData = countBy(filteredData, 'vinculo');
-    charts.vinculo = new Chart(document.getElementById('vinculoChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(vinculoData),
-            datasets: [{
-                data: Object.values(vinculoData),
-                backgroundColor: chartColors
-            }]
-        },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
+
 }
 
 // Função para renderizar a tabela
