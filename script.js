@@ -1,315 +1,558 @@
-// Registrar plugin do Chart.js
-Chart.register(ChartDataLabels);
-
-// URL da planilha do Google Sheets
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1RGc_C7ABlb5hsGrVLgpZWmpdKjelyd6t06M1Ddl-VvU/gviz/tq?tqx=out:json';
-
-let profissionaisData = [];
-let filteredData = [];
-let charts = {};
-
-// Função para carregar dados do Google Sheets
-async function loadGoogleSheetsData( ) {
-    try {
-        const response = await fetch(SHEET_URL);
-        const text = await response.text();
-        const json = JSON.parse(text.substr(47).slice(0, -2));
-        
-        if (json.table && json.table.rows) {
-            const headers = json.table.cols.map(col => col.label);
-            const rows = json.table.rows.map(row => {
-                const obj = {};
-                row.c.forEach((cell, index) => {
-                    obj[headers[index]] = cell ? cell.v : '';
-                });
-                return obj;
-            });
-            
-            // Mapear os dados para o formato esperado
-            profissionaisData = rows.map(row => ({
-                nome: row['Nome'] || '',
-                unidade: row['Unidades de Saúde'] || '',
-                equipe: row['Equipes'] || '',
-                funcao: row['Função'] || '',
-                cargaHoraria: row['Carga Horária'] || '',
-                turno: row['Turno'] || '',
-                situacaoFuncional: row['Situação Funcional'] || '',
-                situacaoAtual: row['Situação atual'] || '',
-                vinculo: row['Vinculo'] || '',
-                status: 'Ativo' // Definir um status padrão
-            }));
-            
-            filteredData = [...profissionaisData];
-            updateDashboard();
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distrito Sanitário Eldorado - Total de Profissionais Ativos nas Unidades</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --light-gray: #f8f9fa;
+            --dark-gray: #6c757d;
         }
-    } catch (error) {
-        console.error('Erro ao carregar dados do Google Sheets:', error);
-        alert('Não foi possível carregar os dados da planilha. Verifique o link e as permissões de compartilhamento.');
-    }
-}
 
-// Função para atualizar o painel
-function updateDashboard() {
-    updateFilters();
-    applyFilters();
-}
-
-// Função para atualizar filtros
-function updateFilters() {
-    const unidades = [...new Set(profissionaisData.map(p => p.unidade))].filter(u => u).sort();
-    const equipes = [...new Set(profissionaisData.map(p => p.equipe))].filter(e => e).sort();
-    const funcoes = [...new Set(profissionaisData.map(p => p.funcao))].filter(f => f).sort();
-    const cargasHorarias = [...new Set(profissionaisData.map(p => p.cargaHoraria))].filter(c => c).sort();
-    const turnos = [...new Set(profissionaisData.map(p => p.turno))].filter(t => t).sort();
-    const situacoesFuncionais = [...new Set(profissionaisData.map(p => p.situacaoFuncional))].filter(s => s).sort();
-    const situacoesAtuais = [...new Set(profissionaisData.map(p => p.situacaoAtual))].filter(s => s).sort();
-    const vinculos = [...new Set(profissionaisData.map(p => p.vinculo))].filter(v => v).sort();
-
-    updateSelectOptions('unidadeFilter', unidades);
-    updateSelectOptions('equipeFilter', equipes);
-    updateSelectOptions('funcaoFilter', funcoes);
-    updateSelectOptions('cargaHorariaFilter', cargasHorarias);
-    updateSelectOptions('turnoFilter', turnos);
-    updateSelectOptions('situacaoFuncionalFilter', situacoesFuncionais);
-    updateSelectOptions('situacaoAtualFilter', situacoesAtuais);
-    updateSelectOptions('vinculoFilter', vinculos);
-}
-
-function updateSelectOptions(selectId, options) {
-    const select = document.getElementById(selectId);
-    const currentValue = select.value;
-    
-    select.innerHTML = '<option value="">Todas</option>';
-    
-    options.forEach(option => {
-        if (option) {
-            const optionElement = document.createElement('option');
-            optionElement.value = option;
-            optionElement.textContent = option;
-            select.appendChild(optionElement);
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100% );
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
         }
-    });
-    
-    if (options.includes(currentValue)) {
-        select.value = currentValue;
-    }
-}
 
-// Função para aplicar filtros
-function applyFilters() {
-    const filters = {
-        unidade: document.getElementById('unidadeFilter').value,
-        equipe: document.getElementById('equipeFilter').value,
-        funcao: document.getElementById('funcaoFilter').value,
-        cargaHoraria: document.getElementById('cargaHorariaFilter').value,
-        turno: document.getElementById('turnoFilter').value,
-        situacaoFuncional: document.getElementById('situacaoFuncionalFilter').value,
-        situacaoAtual: document.getElementById('situacaoAtualFilter').value,
-        vinculo: document.getElementById('vinculoFilter').value
-    };
+        .dashboard-container {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+        }
 
-    filteredData = profissionaisData.filter(prof => {
-        return Object.keys(filters).every(key => {
-            return !filters[key] || prof[key] === filters[key];
-        });
-    });
+        .header-section {
+            background: linear-gradient(135deg, #1a2b3c 0%, #2a7abf 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
 
-    updateStats();
-    renderCharts();
-    renderTable();
-}
+        .header-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
 
-// Função para atualizar estatísticas
-function updateStats() {
-    document.getElementById('totalProfissionais').textContent = filteredData.length;
-    document.getElementById('totalUnidades').textContent = [...new Set(filteredData.map(p => p.unidade))].filter(u => u).length;
-    document.getElementById('totalEquipes').textContent = [...new Set(filteredData.map(p => p.equipe))].filter(e => e).length;
-    document.getElementById('totalFuncoes').textContent = [...new Set(filteredData.map(p => p.funcao))].filter(f => f).length;
-}
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-// Função para renderizar gráficos
-function renderCharts() {
-    Object.values(charts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
 
-    const chartColors = ['#1e3a8a', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0891b2'];
+        .main-title {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
 
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: { enabled: true },
-            datalabels: {
-                anchor: 'center',
-                align: 'center',
-                color: '#fff',
-                font: { weight: 'bold', size: 15 },
-                formatter: (value) => value > 0 ? value : ''
+        .subtitle {
+            font-size: 1.1rem;
+            margin: 10px 0;
+            opacity: 0.9;
+        }
+
+        .director-info {
+            font-size: 1rem;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
+        .signature {
+            font-size: 0.85rem;
+            color: #bdc3c7;
+            margin-top: 15px;
+            font-style: italic;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+
+        .filter-group {
+            margin-bottom: 20px;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            color: white;
+        }
+
+        .btn-update {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-clear {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn-download {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--dark-gray);
+            font-weight: 500;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+
+        .chart-full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        .chart-large {
+            height: 500px;
+        }
+
+        .data-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+
+        .table-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .table-content {
+            padding: 20px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            min-width: 1000px;
+        }
+
+        .table th {
+            background: var(--light-gray);
+            color: var(--primary-color);
+            font-weight: 600;
+            border: 1px solid #e9ecef;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table td {
+            padding: 10px 12px;
+            border: 1px solid #e9ecef;
+            white-space: nowrap;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .badge-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .badge-danger {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
             }
-        },
-        scales: {
-            y: { beginAtZero: true }
+            
+            .dashboard-container {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                padding: 20px !important;
+            }
+            
+            .header-section::before {
+                display: none !important;
+            }
         }
-    };
 
-    // Gráfico por Unidade
-    const unidadeData = countBy(filteredData, 'unidade');
-    charts.unidade = new Chart(document.getElementById('unidadeChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(unidadeData),
-            datasets: [{
-                data: Object.values(unidadeData),
-                backgroundColor: chartColors[0]
-            }]
-        },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 
-    // Gráfico por Função
-    const funcaoData = countBy(filteredData, 'funcao');
-    charts.funcao = new Chart(document.getElementById('funcaoChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(funcaoData),
-            datasets: [{
-                data: Object.values(funcaoData),
-                backgroundColor: chartColors[1]
-            }]
-        },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 1.8rem;
+            }
+            
+            .dashboard-container {
+                padding: 20px;
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-content">
+                <h1 class="main-title">Distrito Sanitário Eldorado</h1>
+                <p class="subtitle">Total de Profissionais Ativos nas Unidades</p>
+                <p class="director-info">Diretora: Wandha Karine dos Santos</p>
+                <div class="signature">
+                    Painel Criado por Ana P. A. Silva Matr. 201704/ Ref. Vivver / Distrito Sanitário Eldorado
+                </div>
+            </div>
+        </div>
 
-    // Gráfico por Carga Horária
-    const cargaHorariaData = countBy(filteredData, 'cargaHoraria');
-    charts.cargaHoraria = new Chart(document.getElementById('cargaHorariaChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(cargaHorariaData),
-            datasets: [{
-                data: Object.values(cargaHorariaData),
-                backgroundColor: chartColors
-            }]
-        },
-        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } }
-    });
+        <!-- Filtros -->
+        <div class="filters-section">
+            <h3 class="mb-4"><i class="fas fa-filter"></i> Filtros de Dados</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="filter-group">
+                    <label class="filter-label">Unidades de Saúde:</label>
+                    <select class="filter-select" id="unidadeFilter">
+                        <option value="">Todas as Unidades</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Equipes:</label>
+                    <select class="filter-select" id="equipeFilter">
+                        <option value="">Todas as Equipes</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Função:</label>
+                    <select class="filter-select" id="funcaoFilter">
+                        <option value="">Todas as Funções</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Carga Horária:</label>
+                    <select class="filter-select" id="cargaHorariaFilter">
+                        <option value="">Todas as Cargas Horárias</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Turno:</label>
+                    <select class="filter-select" id="turnoFilter">
+                        <option value="">Todos os Turnos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Situação Funcional:</label>
+                    <select class="filter-select" id="situacaoFuncionalFilter">
+                        <option value="">Todas as Situações</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Situação Atual:</label>
+                    <select class="filter-select" id="situacaoAtualFilter">
+                        <option value="">Todas as Situações</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Vínculo:</label>
+                    <select class="filter-select" id="vinculoFilter">
+                        <option value="">Todos os Vínculos</option>
+                    </select>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="btn-action btn-update" onclick="updateData()">
+                    <i class="fas fa-sync-alt"></i> Atualizar Painel
+                </button>
+                <button class="btn-action btn-clear" onclick="clearFilters()">
+                    <i class="fas fa-eraser"></i> Limpar Filtros
+                </button>
+                <button class="btn-action btn-download" onclick="downloadExcel()">
+                    <i class="fas fa-download"></i> Baixar Excel
+                </button>
+            </div>
+        </div>
 
-    // Gráfico por Turno
-    const turnoData = countBy(filteredData, 'turno');
-    charts.turno = new Chart(document.getElementById('turnoChart'), {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(turnoData),
-            datasets: [{
-                data: Object.values(turnoData),
-                backgroundColor: chartColors
-            }]
-        },
-        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } }
-    });
+        <!-- Estatísticas Gerais -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalProfissionais">...</div>
+                <div class="stat-label">Total de Profissionais Ativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalUnidades">...</div>
+                <div class="stat-label">Total de Unidades de Saúde</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalEquipes">...</div>
+                <div class="stat-label">Total de Equipes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalFuncoes">...</div>
+                <div class="stat-label">Total de Funções Diferentes</div>
+            </div>
+        </div>
 
-    // Gráfico por Situação Funcional
-    const situacaoFuncionalData = countBy(filteredData, 'situacaoFuncional');
-    charts.situacaoFuncional = new Chart(document.getElementById('situacaoFuncionalChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(situacaoFuncionalData),
-            datasets: [{
-                data: Object.values(situacaoFuncionalData),
-                backgroundColor: chartColors[4]
-            }]
-        },
-        options: commonOptions
-    });
+        <!-- Gráficos -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">Total de Profissionais por Unidade de Saúde</div>
+                <div class="chart-wrapper">
+                    <canvas id="unidadeChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Total de Profissionais Ativos por Carga Horária</div>
+                <div class="chart-wrapper">
+                    <canvas id="cargaHorariaChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-    // Gráfico por Situação Atual
-    const situacaoAtualData = countBy(filteredData, 'situacaoAtual');
-    charts.situacaoAtual = new Chart(document.getElementById('situacaoAtualChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(situacaoAtualData),
-            datasets: [{
-                data: Object.values(situacaoAtualData),
-                backgroundColor: chartColors[5]
-            }]
-        },
-        options: commonOptions
-    });
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">Total de Profissionais Ativos por Turno</div>
+                <div class="chart-wrapper">
+                    <canvas id="turnoChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Total de Profissionais Ativos por Situação Funcional</div>
+                <div class="chart-wrapper">
+                    <canvas id="situacaoFuncionalChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-    // Gráfico por Vinculo
-    const vinculoData = countBy(filteredData, 'vinculo');
-    charts.vinculo = new Chart(document.getElementById('vinculoChart'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(vinculoData),
-            datasets: [{
-                data: Object.values(vinculoData),
-                backgroundColor: chartColors
-            }]
-        },
-        options: { ...commonOptions, indexAxis: 'y' }
-    });
-}
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-title">Total de Profissionais Ativos por Situação Atual</div>
+                <div class="chart-wrapper">
+                    <canvas id="situacaoAtualChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-// Função para renderizar a tabela
-function renderTable() {
-    const tableBody = document.getElementById('profissionaisTable').querySelector('tbody');
-    tableBody.innerHTML = '';
+        <div class="charts-grid">
+            <div class="chart-container chart-full-width chart-large">
+                <div class="chart-title">Total de Profissionais Ativos por Função</div>
+                <div class="chart-wrapper">
+                    <canvas id="funcaoChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-    filteredData.forEach(prof => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${prof.nome}</td>
-            <td>${prof.unidade}</td>
-            <td>${prof.equipe}</td>
-            <td>${prof.funcao}</td>
-            <td>${prof.cargaHoraria}</td>
-            <td>${prof.turno}</td>
-            <td>${prof.situacaoFuncional}</td>
-            <td>${prof.situacaoAtual}</td>
-            <td>${prof.vinculo}</td>
-            <td><span class="badge badge-success">${prof.status}</span></td>
-        `;
-        tableBody.appendChild(row);
-    });
-}
+        <!-- Tabela de Dados -->
+        <div class="data-table">
+            <div class="table-header">
+                <i class="fas fa-table"></i> Dados Completos dos Profissionais de Saúde
+            </div>
+            <div class="table-content">
+                <div class="table-wrapper">
+                    <table class="table" id="profissionaisTable">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Unidade de Saúde</th>
+                                <th>Equipe</th>
+                                <th>Função</th>
+                                <th>Carga Horária</th>
+                                <th>Turno</th>
+                                <th>Situação Funcional</th>
+                                <th>Situação Atual</th>
+                                <th>Vínculo</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Conteúdo será gerado pelo JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
-// Função auxiliar para contagem
-function countBy(data, key) {
-    return data.reduce((acc, item) => {
-        const group = item[key] || 'Não informado';
-        acc[group] = (acc[group] || 0) + 1;
-        return acc;
-    }, {});
-}
-
-// Função para limpar filtros
-function clearFilters() {
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.value = '';
-    });
-    applyFilters();
-}
-
-// Função para baixar como Excel
-function downloadExcel() {
-    const worksheet = XLSX.utils.json_to_sheet(filteredData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Profissionais');
-    XLSX.writeFile(workbook, 'profissionais_filtrados.xlsx');
-}
-
-// Função para atualizar dados (botão)
-function updateData() {
-    loadGoogleSheetsData();
-}
-
-// Inicialização
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.filter-select').forEach(select => {
-        select.addEventListener('change', applyFilters);
-    });
-    loadGoogleSheetsData();
-});
+    <script src="script.js"></script>
+</body>
+</html>
