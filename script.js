@@ -238,7 +238,7 @@ function renderCharts() {
         options: commonOptions
     });
 
-    // Gráfico por Vínculo
+    // Gráfico por Vinculo
     const vinculoData = countBy(filteredData, 'vinculo');
     charts.vinculo = new Chart(document.getElementById('vinculoChart'), {
         type: 'bar',
