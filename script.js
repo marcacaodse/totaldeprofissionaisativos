@@ -9,7 +9,7 @@ let filteredData = [];
 let charts = {};
 
 // Função para carregar dados do Google Sheets
-async function loadGoogleSheetsData() {
+async function loadGoogleSheetsData( ) {
     try {
         const response = await fetch(SHEET_URL);
         const text = await response.text();
@@ -56,14 +56,14 @@ function updateDashboard() {
 
 // Função para atualizar filtros
 function updateFilters() {
-    const unidades = [...new Set(profissionaisData.map(p => p.unidade))].sort();
-    const equipes = [...new Set(profissionaisData.map(p => p.equipe))].sort();
-    const funcoes = [...new Set(profissionaisData.map(p => p.funcao))].sort();
-    const cargasHorarias = [...new Set(profissionaisData.map(p => p.cargaHoraria))].sort();
-    const turnos = [...new Set(profissionaisData.map(p => p.turno))].sort();
-    const situacoesFuncionais = [...new Set(profissionaisData.map(p => p.situacaoFuncional))].sort();
-    const situacoesAtuais = [...new Set(profissionaisData.map(p => p.situacaoAtual))].sort();
-    const vinculos = [...new Set(profissionaisData.map(p => p.vinculo))].sort();
+    const unidades = [...new Set(profissionaisData.map(p => p.unidade))].filter(u => u).sort();
+    const equipes = [...new Set(profissionaisData.map(p => p.equipe))].filter(e => e).sort();
+    const funcoes = [...new Set(profissionaisData.map(p => p.funcao))].filter(f => f).sort();
+    const cargasHorarias = [...new Set(profissionaisData.map(p => p.cargaHoraria))].filter(c => c).sort();
+    const turnos = [...new Set(profissionaisData.map(p => p.turno))].filter(t => t).sort();
+    const situacoesFuncionais = [...new Set(profissionaisData.map(p => p.situacaoFuncional))].filter(s => s).sort();
+    const situacoesAtuais = [...new Set(profissionaisData.map(p => p.situacaoAtual))].filter(s => s).sort();
+    const vinculos = [...new Set(profissionaisData.map(p => p.vinculo))].filter(v => v).sort();
 
     updateSelectOptions('unidadeFilter', unidades);
     updateSelectOptions('equipeFilter', equipes);
@@ -122,9 +122,9 @@ function applyFilters() {
 // Função para atualizar estatísticas
 function updateStats() {
     document.getElementById('totalProfissionais').textContent = filteredData.length;
-    document.getElementById('totalUnidades').textContent = [...new Set(filteredData.map(p => p.unidade))].length;
-    document.getElementById('totalEquipes').textContent = [...new Set(filteredData.map(p => p.equipe))].length;
-    document.getElementById('totalFuncoes').textContent = [...new Set(filteredData.map(p => p.funcao))].length;
+    document.getElementById('totalUnidades').textContent = [...new Set(filteredData.map(p => p.unidade))].filter(u => u).length;
+    document.getElementById('totalEquipes').textContent = [...new Set(filteredData.map(p => p.equipe))].filter(e => e).length;
+    document.getElementById('totalFuncoes').textContent = [...new Set(filteredData.map(p => p.funcao))].filter(f => f).length;
 }
 
 // Função para renderizar gráficos
@@ -313,4 +313,3 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     loadGoogleSheetsData();
 });
-
