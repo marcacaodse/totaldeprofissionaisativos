@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Distrito Sanitário Eldorado - Total de Profissionais Ativos nas Unidades</title>
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -31,51 +37,35 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div class="filter-group">
                     <label class="filter-label">Unidades de Saúde:</label>
-                    <select class="filter-select" id="unidadeFilter">
-                        <option value="">Todas as Unidades</option>
-                    </select>
+                    <select class="filter-select" id="unidadeFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Equipes:</label>
-                    <select class="filter-select" id="equipeFilter">
-                        <option value="">Todas as Equipes</option>
-                    </select>
+                    <select class="filter-select" id="equipeFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Função:</label>
-                    <select class="filter-select" id="funcaoFilter">
-                        <option value="">Todas as Funções</option>
-                    </select>
+                    <select class="filter-select" id="funcaoFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Carga Horária:</label>
-                    <select class="filter-select" id="cargaHorariaFilter">
-                        <option value="">Todas as Cargas Horárias</option>
-                    </select>
+                    <select class="filter-select" id="cargaHorariaFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Turno:</label>
-                    <select class="filter-select" id="turnoFilter">
-                        <option value="">Todos os Turnos</option>
-                    </select>
+                    <select class="filter-select" id="turnoFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Situação Funcional:</label>
-                    <select class="filter-select" id="situacaoFuncionalFilter">
-                        <option value="">Todas as Situações</option>
-                    </select>
+                    <select class="filter-select" id="situacaoFuncionalFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Situação Atual:</label>
-                    <select class="filter-select" id="situacaoAtualFilter">
-                        <option value="">Todas as Situações</option>
-                    </select>
+                    <select class="filter-select" id="situacaoAtualFilter" multiple></select>
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Vínculo:</label>
-                    <select class="filter-select" id="vinculoFilter">
-                        <option value="">Todos os Vínculos</option>
-                    </select>
+                    <select class="filter-select" id="vinculoFilter" multiple></select>
                 </div>
             </div>
             <div class="action-buttons">
@@ -91,113 +81,27 @@
             </div>
         </div>
 
-        <!-- Estatísticas Gerais -->
+        <!-- Estatísticas e Gráficos (sem alterações) -->
         <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
-                <div class="stat-number" id="totalProfissionais">...</div>
-                <div class="stat-label">Total de Profissionais Ativos</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="totalUnidades">...</div>
-                <div class="stat-label">Total de Unidades de Saúde</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="totalEquipes">...</div>
-                <div class="stat-label">Total de Equipes</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="totalFuncoes">...</div>
-                <div class="stat-label">Total de Funções Diferentes</div>
-            </div>
+            <div class="stat-card"><div class="stat-number" id="totalProfissionais">...</div><div class="stat-label">Total de Profissionais Ativos</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalUnidades">...</div><div class="stat-label">Total de Unidades de Saúde</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalEquipes">...</div><div class="stat-label">Total de Equipes</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalFuncoes">...</div><div class="stat-label">Total de Funções Diferentes</div></div>
         </div>
-
-        <!-- Gráficos -->
-        <div class="charts-grid">
-            <div class="chart-container chart-full-width">
-                <div class="chart-title">Total de Profissionais Ativos por Função</div>
-                <div class="chart-wrapper chart-large">
-                    <canvas id="funcaoChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="charts-grid">
-            <div class="chart-container">
-                <div class="chart-title">Total de Profissionais por Unidade de Saúde</div>
-                <div class="chart-wrapper">
-                    <canvas id="unidadeChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-container">
-                <div class="chart-title">Total de profissionais por vinculo</div>
-                <div class="chart-wrapper">
-                    <canvas id="vinculoChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="charts-grid">
-            <div class="chart-container">
-                <div class="chart-title">Total de Profissionais Ativos por Carga Horária</div>
-                <div class="chart-wrapper">
-                    <canvas id="cargaHorariaChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-container">
-                <div class="chart-title">Total de Profissionais Ativos por Turno</div>
-                <div class="chart-wrapper">
-                    <canvas id="turnoChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="charts-grid">
-            <div class="chart-container">
-                <div class="chart-title">Total de Profissionais Ativos por Situação Funcional</div>
-                <div class="chart-wrapper">
-                    <canvas id="situacaoFuncionalChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-container">
-                <div class="chart-title">Total de Profissionais Ativos por Situação Atual</div>
-                <div class="chart-wrapper">
-                    <canvas id="situacaoAtualChart"></canvas>
-                </div>
-            </div>
-        </div>
+        <div class="charts-grid"><div class="chart-container chart-full-width"><div class="chart-title">Total de Profissionais Ativos por Função</div><div class="chart-wrapper chart-large"><canvas id="funcaoChart"></canvas></div></div></div>
+        <div class="charts-grid"><div class="chart-container"><div class="chart-title">Total de Profissionais por Unidade de Saúde</div><div class="chart-wrapper"><canvas id="unidadeChart"></canvas></div></div><div class="chart-container"><div class="chart-title">Total de profissionais por vinculo</div><div class="chart-wrapper"><canvas id="vinculoChart"></canvas></div></div></div>
+        <div class="charts-grid"><div class="chart-container"><div class="chart-title">Total de Profissionais Ativos por Carga Horária</div><div class="chart-wrapper"><canvas id="cargaHorariaChart"></canvas></div></div><div class="chart-container"><div class="chart-title">Total de Profissionais Ativos por Turno</div><div class="chart-wrapper"><canvas id="turnoChart"></canvas></div></div></div>
+        <div class="charts-grid"><div class="chart-container"><div class="chart-title">Total de Profissionais Ativos por Situação Funcional</div><div class="chart-wrapper"><canvas id="situacaoFuncionalChart"></canvas></div></div><div class="chart-container"><div class="chart-title">Total de Profissionais Ativos por Situação Atual</div><div class="chart-wrapper"><canvas id="situacaoAtualChart"></canvas></div></div></div>
 
         <!-- Tabela de Dados -->
         <div class="data-table">
             <div class="table-header">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span><i class="fas fa-table"></i> Dados Completos dos Profissionais de Saúde</span>
-                    <input type="text" id="tableSearch" placeholder="Pesquisar na tabela..." 
-                           style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; color: #333; width: 300px;">
+                    <input type="text" id="tableSearch" placeholder="Pesquisar na tabela..." style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; color: #333; width: 300px;">
                 </div>
             </div>
-            <div class="table-content">
-                <div class="table-wrapper">
-                    <table class="table" id="profissionaisTable">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Unidade de Saúde</th>
-                                <th>Equipe</th>
-                                <th>Função</th>
-                                <th>Carga Horária</th>
-                                <th>Turno</th>
-                                <th>Situação Funcional</th>
-                                <th>Situação Atual</th>
-                                <th>Vínculo</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Conteúdo será gerado pelo JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <div class="table-content"><div class="table-wrapper"><table class="table" id="profissionaisTable"><thead><tr><th>Nome</th><th>Unidade de Saúde</th><th>Equipe</th><th>Função</th><th>Carga Horária</th><th>Turno</th><th>Situação Funcional</th><th>Situação Atual</th><th>Vínculo</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
         </div>
     </div>
 
