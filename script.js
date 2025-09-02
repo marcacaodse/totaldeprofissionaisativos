@@ -142,10 +142,10 @@ function renderCharts() {
             legend: { display: false },
             tooltip: { enabled: true },
             datalabels: {
-                anchor: 'end',
-                align: 'top',
-                color: '#333',
-                font: { weight: 'bold' },
+                anchor: 'center',
+                align: 'center',
+                color: '#fff',
+                font: { weight: 'bold', size: 15 },
                 formatter: (value) => value > 0 ? value : ''
             }
         },
