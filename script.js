@@ -165,7 +165,7 @@ function renderCharts() {
                 backgroundColor: chartColors[0]
             }]
         },
-        options: commonOptions
+        options: { ...commonOptions, indexAxis: 'y' }
     });
 
     // Gráfico por Função
@@ -179,13 +179,13 @@ function renderCharts() {
                 backgroundColor: chartColors[1]
             }]
         },
-        options: commonOptions
+        options: { ...commonOptions, indexAxis: 'y' }
     });
 
     // Gráfico por Carga Horária
     const cargaHorariaData = countBy(filteredData, 'cargaHoraria');
     charts.cargaHoraria = new Chart(document.getElementById('cargaHorariaChart'), {
-        type: 'pie',
+        type: 'bar',
         data: {
             labels: Object.keys(cargaHorariaData),
             datasets: [{
@@ -193,7 +193,7 @@ function renderCharts() {
                 backgroundColor: chartColors
             }]
         },
-        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom' } } }
+        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } }
     });
 
     // Gráfico por Turno
@@ -207,7 +207,7 @@ function renderCharts() {
                 backgroundColor: chartColors
             }]
         },
-        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom' } } }
+        options: { ...commonOptions, plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom', labels: { font: { size: 16 } } } } }
     });
 
     // Gráfico por Situação Funcional
